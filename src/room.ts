@@ -15,20 +15,16 @@ import type { SseMessage } from "./log/sse.js";
 import { joinSeat, type Seat, type Speaking } from "./seat/join.js";
 import { loadLivekit, type LivekitModule } from "./seat/livekit.js";
 import { hiddenSink } from "./seat/sink.js";
+import type { Minted } from "./server/index.js";
 import { cell, type Store } from "./store.js";
+
+export type { Minted };
 
 /** Where the conversation is. `ringing` is a phone call nobody has answered yet. */
 export type Phase = "idle" | "opening" | "ringing" | "live" | "ended" | "failed";
 
 /** Spoken, written, or on the visitor's own phone. The same agent every way. */
 export type Mode = "talk" | "chat" | "phone";
-
-/** What `POST /v1/tokens` answers, passed through by the tenant's server. */
-export interface Minted {
-  server_url: string;
-  participant_token: string;
-  call: string;
-}
 
 /** Everything the page draws from. Every field is the truth at the moment it was published. */
 export interface RoomState {

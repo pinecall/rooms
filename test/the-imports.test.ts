@@ -1,5 +1,6 @@
 // The import table, as a test. Read top to bottom it is the whole architecture: the log knows only
-// the wire, and the seat is the one place LiveKit is named.
+// the wire, the seat is the one place LiveKit is named, and the server entry knows nothing of the
+// browser's.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
@@ -15,8 +16,13 @@ const MAY_IMPORT: Record<string, string[]> = {
   "log": ["@pinecall/protocol"],
   // The room, the sink, the loader. LiveKit, and only through seat/livekit.ts (below).
   "seat": ["livekit-client"],
-  // The top: the store, the room, the rows, the surface.
-  "": ["./log", "./seat", "@pinecall/protocol"],
+  // The React entry: React, and the package's own surface.
+  "react": ["react", "."],
+  // The server entry: fetch. It is imported by a tenant's server, so nothing browser-side rides in.
+  "server": [],
+  // The top: the store, the room, the rows, the surface. The room names the server's `Minted`,
+  // one definition of the ticket for the page and the server that mints it.
+  "": ["./log", "./seat", "./server", "@pinecall/protocol"],
 };
 
 /** Files held to a narrower line than their directory's. */
