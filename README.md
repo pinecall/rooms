@@ -224,7 +224,7 @@ entries inside one turn is one repaint, not forty.
 The log is read for a while after the seat closes. The agent's last words, the call's cost and its
 score are entries that arrive after the visitor has gone, so `cost` is `null` until `call.summary`,
 which comes after `call.ended`. The stream is followed until `call.score`, the last thing a log ever
-says, or for `linger` milliseconds after the call ended (20 000 by default), whichever is first.
+says, or for `linger` milliseconds after the call ended (60 000 by default: the worker notices a caller has gone some twenty seconds after the fact, and the score comes after that), whichever is first.
 
 A stream that drops is opened again from the last entry read, after half a second, doubling to
 eight seconds while the relay does not answer.
@@ -244,7 +244,7 @@ as one short line each, `status` (`running`, `done`, `failed`) and `error` — a
 
 `knownBy(state.log)` is the agent's own declared fields, in the order its class writes them, as
 `[name, value]` pairs with the empty ones left out. `brief(value, max)` is a value as one line of
-JSON, cut at `max` characters.
+JSON, cut at `max` characters. A field that is an object is opened one level — `person.name`, `person.email` — so a page shows a name rather than a JSON blob.
 
 ## Sound and the browser's permission
 

@@ -49,7 +49,8 @@ export interface RoomOptions {
   log: (call: string, minted?: Minted) => string;
   /** Ask the tenant's server to have the agent call `to`. */
   callMe?: ((to: string) => Promise<{ call: string }>) | undefined;
-  /** How long the log is read after the seat closes, waiting for the score. Default 20 000 ms. */
+  /** How long the log is read after the seat closes, waiting for the score. Default 60 000 ms: a worker
+   * notices a caller has gone some twenty seconds after the fact, and the score comes after that. */
   linger?: number | undefined;
   fetch?: typeof fetch | undefined;
   livekit?: (() => Promise<LivekitModule>) | undefined;
@@ -65,7 +66,7 @@ export interface RoomStore extends Store<RoomState> {
   playSound(): void;
 }
 
-const LINGER_MS = 20_000;
+const LINGER_MS = 60_000;
 // A seat asked to close is given this long. A network that has gone does not hold the page up.
 const PARTING_MS = 3_000;
 const QUIET: Speaking = { agent: false, user: false, level: 0 };

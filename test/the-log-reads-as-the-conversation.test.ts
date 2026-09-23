@@ -49,7 +49,10 @@ describe("the log reads as the conversation", () => {
     const known = Object.fromEntries(knownBy(state));
     expect(known.stage).toBe("done");
     expect(known.day).toBe("2026-09-24");
-    expect(known.meeting).toContain("14:00");
+    // An object is opened one level: a page shows the time, not a JSON blob.
+    expect(known["meeting.time"]).toBe("14:00");
+    expect(known["person.name"]).toBe("Ana Ruiz");
+    expect(known).not.toHaveProperty("meeting");
     // `proposed` is cleared the moment the booking lands, so it is not a row.
     expect(known).not.toHaveProperty("proposed");
   });

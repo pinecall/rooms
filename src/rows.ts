@@ -90,9 +90,27 @@ function msOf(seconds: number | null | undefined): number | undefined {
   return typeof seconds === "number" ? Math.round(seconds * 1000) : undefined;
 }
 
-/** The agent's own declared fields, in the order the class writes them, minus the empty ones. */
+/**
+ * The agent's own declared fields, in the order the class writes them, minus the empty ones. A
+ * field that is an object is opened one level — `person.name`, `person.email` — because a page
+ * shows a name, not a JSON blob; anything deeper is written briefly as it is.
+ */
 export function knownBy(state: State): [string, string][] {
-  return Object.entries(state.app_state)
-    .filter(([, value]) => value !== null && value !== undefined && value !== "")
-    .map(([name, value]) => [name, brief(value, 60)]);
+  const rows: [string, string][] = [];
+  for (const [name, value] of Object.entries(state.app_state)) {
+    if (isRecord(value)) {
+      for (const [field, inner] of Object.entries(value)) {
+        if (!empty(inner)) rows.push([`${name}.${field}`, brief(inner, 60)]);
+      }
+    } else if (!empty(value)) rows.push([name, brief(value, 60)]);
+  }
+  return rows;
+}
+
+function empty(value: unknown): boolean {
+  return value === null || value === undefined || value === "";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
