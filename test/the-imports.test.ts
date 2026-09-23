@@ -1,5 +1,5 @@
 // The import table, as a test. Read top to bottom it is the whole architecture: the log knows only
-// the wire, and the rows know only the state it folds into.
+// the wire, and the seat is the one place LiveKit is named.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
@@ -13,6 +13,8 @@ const SRC = fileURLToPath(new URL("../src", import.meta.url));
 const MAY_IMPORT: Record<string, string[]> = {
   // The follow, the parser and the fold. The wire, and nothing else.
   "log": ["@pinecall/protocol"],
+  // The room, the sink, the loader. LiveKit, and only through seat/livekit.ts (below).
+  "seat": ["livekit-client"],
   // The top: the store, the rows, the surface.
   "": ["./log", "@pinecall/protocol"],
 };
@@ -22,6 +24,9 @@ const ONLY: Record<string, string[]> = {
   // The rows are a view of the folded log: the wire's State and nothing of the room.
   "rows.ts": ["@pinecall/protocol"],
 };
+
+/** The one file that may name livekit-client. Everything else in seat/ takes the module it loaded. */
+const LIVEKIT_DOOR = "seat/livekit.ts";
 
 /** Which line of the table a file falls under: the longest declared prefix of its path. */
 function partOf(path: string): string {
@@ -34,7 +39,7 @@ function partOf(path: string): string {
 }
 
 // What an import looks like once the comments are gone; the third form is `import("x")`, a
-// package loaded when it is needed.
+// package loaded when it is needed — which is how livekit-client is reached.
 const SPECIFIER = /^(?:import|export)[\s\S]*?from\s+"([^"]+)"|^import\s+"([^"]+)"|\bimport\("([^"]+)"\)/gm;
 
 /** Our own part as an import names it, so a part called `react` is never the package `react`. */
@@ -93,6 +98,12 @@ describe("the import table", () => {
       .map(({ file, to }) => `src/${file} may not import ${to}`);
 
     expect(broken).toEqual([]);
+  });
+
+  it("lets only seat/livekit.ts name livekit-client", () => {
+    const naming = edges().filter(({ to }) => to === "livekit-client").map(({ file }) => file);
+
+    expect([...new Set(naming)]).toEqual([LIVEKIT_DOOR]);
   });
 
   // A line nobody needs is a line that stops being read. Every entry is either used or gone.
