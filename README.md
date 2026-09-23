@@ -237,7 +237,8 @@ import { brief, knownBy, rowsOf } from "@pinecall/room";
 
 `rowsOf(state.log)` is the conversation as one column, in the order things happened: every turn,
 and every tool run above the reply it was called for. A turn row has `role`, `text`, and for the
-agent `ms` (how long the reply took) and `interrupted`. A tool row has `name`, `args` and `output`
+agent `ms` (how long the reply took, end to end), `ttft` (the model's time to its first token —
+what a written call has, since nobody spoke) and `interrupted`. A tool row has `name`, `args` and `output`
 as one short line each, `status` (`running`, `done`, `failed`) and `error` — and `raw`, the
 `arguments` and `output` as they are, for a page that draws more than one line.
 

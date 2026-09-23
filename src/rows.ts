@@ -15,7 +15,10 @@ export type Row =
       key: string;
       role: "user" | "agent";
       text: string;
+      /** How long the reply took, end to end, when the wire measured it. */
       ms?: number | undefined;
+      /** The model's time to its first token: what a written call has instead of `ms`. */
+      ttft?: number | undefined;
       interrupted?: boolean | undefined;
     }
   | {
@@ -68,6 +71,7 @@ export function rowsOf(state: State): Row[] {
       role: turn.role,
       text: turn.text,
       ms: turn.role === "agent" ? msOf(turn.metrics?.e2e_latency) : undefined,
+      ttft: turn.role === "agent" ? msOf(turn.metrics?.llm_node_ttft) : undefined,
       interrupted: turn.role === "agent" ? turn.interrupted : undefined,
     });
   }
