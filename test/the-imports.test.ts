@@ -29,6 +29,8 @@ const MAY_IMPORT: Record<string, string[]> = {
 const ONLY: Record<string, string[]> = {
   // The rows are a view of the folded log: the wire's State and nothing of the room.
   "rows.ts": ["@pinecall/protocol"],
+  // The karaoke reads the log's entries: the wire, and nothing of the room.
+  "karaoke.ts": ["@pinecall/protocol"],
 };
 
 /** The one file that may name livekit-client. Everything else in seat/ takes the module it loaded. */

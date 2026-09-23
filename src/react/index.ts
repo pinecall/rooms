@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { room, type RoomOptions, type RoomState, type RoomStore, type Store } from "../index.js";
+import { litAt, room, sayingOf, type Lit, type RoomOptions, type RoomState, type RoomStore, type Store } from "../index.js";
 
 /** The store's state, re-rendering when it changes. Any store of this package. */
 export function useStore<T>(store: Store<T>): T {
@@ -42,6 +42,34 @@ export function useRoom(options: RoomOptions): RoomHandle {
   const state = useStore(store);
   const { start, send, callMe, leave, playSound } = store;
   return { ...state, start, send, callMe, leave, playSound };
+}
+
+/**
+ * The agent's reply as the voice says it: `lit` has sounded, `coming` has not, or null when nobody
+ * is mid-reply. The clock starts when the reply's first word reaches the page and ticks one frame
+ * at a time only while a word is still due. Pass `state.entries` of a live room.
+ */
+export function useKaraoke(entries: RoomState["entries"]): Lit | null {
+  const saying = sayingOf(entries);
+  const began = useRef<{ speech: string; at: number } | null>(null);
+  const [now, setNow] = useState(() => performance.now());
+
+  if (saying === null) began.current = null;
+  else if (began.current?.speech !== saying.speech) began.current = { speech: saying.speech, at: performance.now() };
+
+  const split = saying === null || saying.words.length === 0 ? null : litAt(saying, now - (began.current?.at ?? now));
+  const waiting = split !== null && split.coming !== "";
+
+  useEffect(() => {
+    if (!waiting) return;
+    let frame = requestAnimationFrame(function tick() {
+      setNow(performance.now());
+      frame = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [waiting]);
+
+  return split;
 }
 
 /** Options whose every field is the one the component rendered last. */

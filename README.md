@@ -11,7 +11,7 @@ that change it. The package has three entry points, and each one is for a differ
 
 | import | where it runs | what it gives you |
 |---|---|---|
-| `@pinecall/room` | the page | `room()`, the store of one conversation, and `rowsOf`, `knownBy`, `brief` to draw it |
+| `@pinecall/room` | the page | `room()`, the store of one conversation, `rowsOf`, `knownBy`, `brief` to draw it, and the karaoke of what is being said |
 | `@pinecall/room/react` | the page, in React | `useRoom()` and `useStore()` |
 | `@pinecall/room/server` | your server | `mint()`, `dial()` and `GatewayRefused`: the only code that touches the key |
 
@@ -245,6 +245,44 @@ as one short line each, `status` (`running`, `done`, `failed`) and `error` — a
 `knownBy(state.log)` is the agent's own declared fields, in the order its class writes them, as
 `[name, value]` pairs with the empty ones left out. `brief(value, max)` is a value as one line of
 JSON, cut at `max` characters. A field that is an object is opened one level — `person.name`, `person.email` — so a page shows a name rather than a JSON blob.
+
+## What is being said right now
+
+Both sides of a spoken call can be drawn as they happen, karaoke-style.
+
+**The visitor** — `state.log.live.user` is what the recogniser has heard so far of the turn in
+progress, rewritten as they speak ("Hi", "Hi ther", "Hi there. I would…"), and `null` once the
+turn closes.
+
+**The agent** — a voice call's log carries its reply one word at a time, each with the second it
+is spoken at. The words usually reach the page before the voice says them, so a page can draw the
+whole sentence and light each word as it sounds:
+
+```tsx
+import { useKaraoke } from "@pinecall/room/react";
+
+const saying = useKaraoke(room.entries);   // null when nobody is mid-reply
+{saying && <p><b>{saying.lit}</b><span className="dim">{saying.coming}</span></p>}
+```
+
+Without React, the same with a clock of your own: note the time the reply's first word arrived,
+and on each frame split it with `litAt`.
+
+```ts
+import { litAt, sayingOf } from "@pinecall/room";
+
+let began: { speech: string; at: number } | null = null;
+function frame() {
+  const saying = sayingOf(call.state.entries);
+  if (saying && began?.speech !== saying.speech) began = { speech: saying.speech, at: performance.now() };
+  if (saying && began) draw(litAt(saying, performance.now() - began.at));   // { lit, coming }
+  requestAnimationFrame(frame);
+}
+```
+
+A written call's reply comes as model tokens with no timing: every token is lit as it arrives,
+which reads as the agent typing. Once the turn closes, the reply is a turn in `rowsOf` like any
+other, and `useKaraoke` returns `null`.
 
 ## Sound and the browser's permission
 

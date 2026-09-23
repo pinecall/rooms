@@ -40,7 +40,18 @@ importers:
         specifier: ^5.0.0
         version: 5.0.1(@types/node@26.6.2)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.2))
 
-  ../protocol/typescript: {}
+  ../protocol/typescript:
+    dependencies:
+      zod:
+        specifier: ^4.5.4
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: ^26.4.1
+        version: 26.6.2
+      vitest:
+        specifier: ^5.0.0
+        version: 5.0.1(@types/node@26.6.2)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.2))
 
 packages:
 
@@ -671,6 +682,9 @@ packages:
       utf-8-validate:
         optional: true
 
+  zod@4.6.5:
+    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
+
 snapshots:
 
   '@bufbuild/protobuf@1.10.1': {}
@@ -1102,3 +1116,5 @@ snapshots:
       stackback: 0.0.2
 
   ws@8.21.3: {}
+
+  zod@4.6.5: {}

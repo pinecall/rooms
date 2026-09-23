@@ -4,7 +4,15 @@ All notable changes to `@pinecall/room`. The format is
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version numbers and tags are the
 maintainer's call.
 
-## 0.1.0 — the room (unreleased)
+## 0.1.1 — karaoke
+
+### Added
+- **What is being said right now.** `useKaraoke(state.entries)` in `@pinecall/room/react` splits
+  the agent's reply in progress into what has sounded and what is still to come, by the second each
+  word is spoken at; `sayingOf`, `soundedBy`, `litAt` and `joined` do the same without React. The
+  visitor's words as they are heard were already `state.log.live.user`; the README now says so.
+
+## 0.1.0 — the room (2026-09-23)
 
 ### Added
 - **`room(options)`**: one store for one conversation — talk, chat, or "call me" — with the seat

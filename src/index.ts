@@ -7,3 +7,4 @@ export type { Connection } from "./log/follow.js";
 export type { Speaking } from "./seat/join.js";
 export type { LivekitModule } from "./seat/livekit.js";
 export { brief, knownBy, rowsOf, type Row } from "./rows.js";
+export { joined, litAt, sayingOf, soundedBy, type Lit, type Saying, type Word } from "./karaoke.js";
