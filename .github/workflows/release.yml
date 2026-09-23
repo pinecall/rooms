@@ -1,0 +1,100 @@
+# The tag IS the publication. `git push origin vX.Y.Z` and this publishes `@pinecall/room` on npm.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  # To rehearse the path without spending a number: guard and gates run, publish is skipped
+  # because it is not a tag.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # An npm version is immutable: it cannot be unpublished or overwritten. Two questions before
+  # touching the registry — do the tag and the tree say the same number, and is what the manifest
+  # declares installable from outside this checkout.
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.declared.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # Two lines and not one: `echo "version=$(scripts/the-version)"` swallows the script's exit
+      # code — echo exits 0 — and the step goes GREEN with an empty version. An assignment does
+      # propagate the status under `bash -e`.
+      - id: declared
+        run: |
+          version=$(scripts/the-version)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: the tag and the declared version are the same number
+        if: github.ref_type == 'tag'
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          declared="${{ steps.declared.outputs.version }}"
+          if [ "$tag" != "$declared" ]; then
+            echo "the tag says $tag and the tree declares $declared — one of them is wrong" >&2
+            exit 1
+          fi
+          echo "v$declared"
+
+  # The real gate, the same one every push runs. A tag push does NOT match ci.yml's
+  # `push: branches` — a tag is not a branch — so without this line the release path has no gate.
+  gates:
+    uses: ./.github/workflows/ci.yml
+
+  # Trusted Publishing does NOT work inside a reusable workflow: the tests are reused, the publish
+  # stays up here.
+  publish-npm:
+    needs: [guard, gates]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write   # OIDC, no token stored anywhere
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: client
+      - uses: actions/checkout@v4
+        with:
+          repository: pinecall/protocol
+          path: protocol
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.2.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      # setup-node brings an npm that does NOT know the registry's OIDC exchange and falls SILENTLY
+      # to an anonymous publish: a 404 on the PUT, after saying it signed the provenance.
+      - run: npm install -g npm@latest
+      - run: pnpm install --frozen-lockfile
+        working-directory: client
+      - run: scripts/build
+        working-directory: client
+      # pnpm packs and npm publishes, each half for its own reason. `npm pack` does NOT apply
+      # `publishConfig`: its manifest would still point at ./src, and `files: ["dist"]` ships none of
+      # it. `pnpm pack` does. And npm publishes because npm is what speaks OIDC to the registry; the
+      # tarball travels as it is — `npm publish <tgz>` repacks nothing.
+      - run: pnpm pack --pack-destination /tmp/pkg
+        working-directory: client
+      # npm never takes a number twice, so asking again is a red run that says nothing new.
+      - name: publish, unless this version is already on npm
+        working-directory: client
+        run: |
+          version="${{ needs.guard.outputs.version }}"
+          if npm view "@pinecall/room@$version" version >/dev/null 2>&1; then
+            echo "@pinecall/room@$version is already on npm: nothing to publish, the tag records it"
+            exit 0
+          fi
+          npm publish --provenance --access public /tmp/pkg/*.tgz

@@ -1,0 +1,54 @@
+# The gate: build, lint, test, on every push and every pull request. One job, because the whole
+# check is seconds and a matrix would only make a failure harder to read.
+#
+# Two repositories, laid out the way a laptop has them. `pnpm-workspace.yaml` names
+# `../protocol/typescript` as a workspace package, so the checkout next door is what the wire
+# resolves to — the same one the suite ran against on the laptop.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+  # release.yml runs THIS file as its gate instead of repeating the steps: the release's gate and
+  # every push's are the same one, or one of them lies.
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: client
+
+      - uses: actions/checkout@v4
+        with:
+          repository: pinecall/protocol
+          path: protocol
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.2.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: client/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+        working-directory: client
+
+      # build, then lint, then test — the order matters and scripts/check is where it is written.
+      - run: scripts/check
+        working-directory: client
