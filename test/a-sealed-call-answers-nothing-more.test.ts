@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FakeGateway, framed, settle } from "./a-fake-gateway.js";
 import { follow } from "./a-log-followed.js";
+import { aRoom, LOG } from "./a-room-at-hand.js";
 import { BOOKING } from "./a-real-booking.js";
 
 const URL = "/api/log?call=call_1";
@@ -45,5 +46,17 @@ describe("a sealed call", () => {
     await settle();
 
     expect(followed.endings).toEqual([{ kind: "refused", status: 401 }]);
+  });
+});
+
+describe("a sealed call, in a room", () => {
+  it("ends the connection and leaves a room's phase to its seat", async () => {
+    const { store, gateway } = aRoom();
+    gateway.answer(LOG, { status: 204 });
+    await store.start("chat");
+    await settle();
+
+    expect(store.state.connection).toBe("ended");
+    expect(store.state.phase).toBe("live");
   });
 });

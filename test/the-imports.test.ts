@@ -15,8 +15,8 @@ const MAY_IMPORT: Record<string, string[]> = {
   "log": ["@pinecall/protocol"],
   // The room, the sink, the loader. LiveKit, and only through seat/livekit.ts (below).
   "seat": ["livekit-client"],
-  // The top: the store, the rows, the surface.
-  "": ["./log", "@pinecall/protocol"],
+  // The top: the store, the room, the rows, the surface.
+  "": ["./log", "./seat", "@pinecall/protocol"],
 };
 
 /** Files held to a narrower line than their directory's. */

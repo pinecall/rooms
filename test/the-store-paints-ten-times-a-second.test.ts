@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LogFold } from "../src/log/fold.js";
 import { SseParser } from "../src/log/sse.js";
 import { cell, FRAME_MS, type Cell } from "../src/store.js";
-import { framed } from "./a-fake-gateway.js";
+import { framed, settle } from "./a-fake-gateway.js";
+import { aRoom, LOG } from "./a-room-at-hand.js";
 import { BOOKING } from "./a-real-booking.js";
 
 interface Drawn {
@@ -95,5 +96,23 @@ describe("the store", () => {
 
     expect(heard).toHaveLength(0);
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("the room's store", () => {
+  it("paints 81 entries in one chunk at most twice in a frame, with its phase heard at once", async () => {
+    const { store, gateway, heard } = aRoom();
+    gateway.answer(LOG, { stream: [], then: "hold" });
+    await store.start("chat");
+    const before = heard.length;
+    gateway.push(framed(BOOKING));
+    await settle();
+    await vi.advanceTimersByTimeAsync(FRAME_MS);
+
+    const painted = heard.slice(before).filter((state, at, all) => state.log !== (all[at - 1] ?? heard[before - 1])?.log);
+    expect(painted.length).toBeGreaterThan(0);
+    expect(painted.length).toBeLessThanOrEqual(2);
+    expect(store.state.phase).toBe("ended");
+    expect(store.state.entries).toHaveLength(BOOKING.length);
   });
 });
