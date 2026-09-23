@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# The version this repo declares, and the one condition that cannot be fixed after publishing: no
+# dependency may go out as `workspace:`, `file:` or `link:`. In the working tree the protocol is the
+# checkout next door, linked by pnpm-workspace.yaml; a range that names that link instead of a
+# published version would publish a package asking for a protocol the registry does not have.
+# Prints the version, or the reason.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+version=$(node -p "require('./package.json').version")
+
+linked=$(node -e '
+const p = require("./package.json");
+const fields = ["dependencies", "optionalDependencies", "peerDependencies"];
+const bad = fields.flatMap((f) =>
+  Object.entries(p[f] ?? {}).filter(([, r]) => /^(workspace|file|link):/.test(r))
+    .map(([n, r]) => `${f}.${n} = ${r}`));
+console.log(bad.join("\n"));
+')
+if [ -n "$linked" ]; then
+  echo "dependencies tied to the checkout next door:" >&2
+  echo "$linked" >&2
+  echo "publish the protocol first and put its range here before tagging." >&2
+  exit 1
+fi
+echo "$version"

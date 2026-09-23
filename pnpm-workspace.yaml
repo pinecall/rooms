@@ -1,0 +1,11 @@
+packages:
+  # The wire, from the repo next door: one contract, three languages, its own version. Linked so
+  # a change to the protocol is tested here before it is published.
+  - ../protocol/typescript
+
+# Our own wire, published by us: the release-age wait guards against somebody else's package.
+minimumReleaseAgeExclude:
+  - '@pinecall/protocol'
+
+# The wire is the checkout next door: link it, never the registry copy.
+linkWorkspacePackages: true
