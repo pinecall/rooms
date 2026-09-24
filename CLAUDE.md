@@ -1,7 +1,7 @@
 # pinecall/rooms
 
 `@pinecall/room`: the caller's side of a Pinecall call in a browser — one store joining the seat
-(LiveKit) and the call's log (relayed by the tenant's server, folded by `@pinecall/protocol`), with
+(LiveKit) and the call's log (read from the gateway with the call's log token, folded by `@pinecall/protocol`), with
 a React entry and a server entry. Reply to the human in Spanish; code, comments, commit messages and
 this file in English. What it is and how a page uses it: [README.md](README.md), which is also its
 docs page.
