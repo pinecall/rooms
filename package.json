@@ -6,7 +6,7 @@
   "author": "Pinecall <hello@pinecall.io>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pinecall/client.git"
+    "url": "git+https://github.com/pinecall/rooms.git"
   },
   "type": "module",
   "sideEffects": false,

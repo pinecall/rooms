@@ -1,4 +1,4 @@
-# pinecall/client
+# pinecall/rooms
 
 `@pinecall/room`: the caller's side of a Pinecall call in a browser — one store joining the seat
 (LiveKit) and the call's log (relayed by the tenant's server, folded by `@pinecall/protocol`), with
