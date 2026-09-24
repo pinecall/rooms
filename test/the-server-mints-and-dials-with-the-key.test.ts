@@ -32,8 +32,8 @@ function gateway(status: number, body: string): { fetch: typeof fetch; posted: P
   };
 }
 
-const MINTED = { server_url: "wss://lk.example", participant_token: "ticket", call: "call_1" };
-const DIALED = { call: "call_2", agent: "clinica", to: "+34600000001", from: "+34910000000", env: "production" };
+const MINTED = { server_url: "wss://lk.example", participant_token: "ticket", call: "call_1", log_token: "log_1" };
+const DIALED = { call: "call_2", agent: "clinica", to: "+34600000001", from: "+34910000000", env: "production", log_token: "log_2" };
 
 describe("the server", () => {
   it("mints with the key: {agent, scope, ttl_s} to /v1/tokens, the bearer on the header", async () => {
@@ -50,6 +50,13 @@ describe("the server", () => {
         timed: true,
       },
     ]);
+  });
+
+  it("asks for the projection the page reads the call through, when told: `log` on the body", async () => {
+    const { fetch, posted } = gateway(200, JSON.stringify(MINTED));
+    const minted = await mint(KEY, { url: "https://gw.example", agent: "clinica", scope: "chat", log: "tenant", fetch });
+    expect(minted.log_token).toBe("log_1");
+    expect(posted[0]?.body).toEqual({ agent: "clinica", scope: "chat", log: "tenant" });
   });
 
   it("dials with the key: {to, from} to /v1/agents/{agent}/dial", async () => {

@@ -16,8 +16,8 @@ that change it. The package has three entry points, and each one is for a differ
 | `@pinecall/room/server` | your server | `mint()`, `dial()` and `GatewayRefused`: the only code that touches the key |
 
 A conversation has two parts, and they are not the same thing. **The seat** is a LiveKit room: it
-carries the audio and the typed lines. **The log** is the call's record on the gateway, relayed by
-your server: every turn, every tool the agent called and what came back, the agent's own state, and
+carries the audio and the typed lines. **The log** is the call's record on the gateway, read
+straight from it with a token minted for that one call: every turn, every tool the agent called and what came back, the agent's own state, and
 at the end the cost and the score. The store joins the two. What the page draws is the log folded
 by `@pinecall/protocol`, the same fold the Pinecall console draws from.
 
@@ -47,7 +47,6 @@ const call = room({
     if (!answer.ok) throw new Error(body.detail ?? `the server answered ${answer.status}`);
     return body;
   },
-  log: (call) => `/api/log?call=${encodeURIComponent(call)}`,
 });
 
 call.subscribe((state) => {
@@ -83,7 +82,7 @@ import { rowsOf } from "@pinecall/room";
 
 // `tokens` is the function from the page above.
 export function Visitor() {
-  const call = useRoom({ tokens, log: (id) => `/api/log?call=${encodeURIComponent(id)}` });
+  const call = useRoom({ tokens });
 
   if (call.phase === "idle") return <button onClick={() => call.start("talk")}>Talk</button>;
   if (call.phase === "failed") return <p>{call.error}</p>;
@@ -107,17 +106,16 @@ back the state with the five verbs beside it.
 `useStore(store)` is the plain version: any store of this package, read with React's
 `useSyncExternalStore`. `useRoom` is `useStore` over a room it owns.
 
-## Your server: the three routes
+## Your server: two routes
 
-The page never holds a key. Every question it asks goes to your own server, which asks the
-gateway with the org's key and hands back only what that one visitor needs. The key needs two
-scopes: `talk` (a ticket, a dial) and `calls` (reading a call's log). It never reaches the page.
+The page never holds a key. It asks your server for a seat and, if you offer it, for a call to its
+phone; your server asks the gateway with the org's key. The key needs the `talk` scope and never
+reaches the page.
 
 | route | the page sends | your server does | it answers |
 |---|---|---|---|
-| `POST /api/token` | `{scope}`, `talk` or `chat` | `mint(key, {url, agent, scope})` | `{server_url, participant_token, call}` |
-| `GET /api/log?call=` | the call id, and `last-event-id` on a resume | streams `GET /v1/calls/{call}/events` with the key | the gateway's stream, its status passed through: `204` when the call is sealed |
-| `POST /api/call-me` | `{to}`, a number in E.164 | `dial(key, {url, agent, to})` | `{call}` |
+| `POST /api/token` | `{scope}`, `talk` or `chat` | `mint(key, {url, agent, scope, log})` | the gateway's answer whole: `{server_url, participant_token, call, log_token}` |
+| `POST /api/call-me` | `{to}`, a number in E.164 | `dial(key, {url, agent, to, log})` | `{call, log_token}` |
 
 The names of the routes are yours; the page only knows the functions you give `room()`. With
 Hono:
@@ -139,34 +137,25 @@ const refused = (error: unknown) => {
 
 app.post("/api/token", async (c) => {
   const { scope } = await c.req.json();
-  return mint(KEY, { url, agent, scope }).then((minted) => c.json(minted), refused);
+  return mint(KEY, { url, agent, scope, log: "tenant" }).then((minted) => c.json(minted), refused);
 });
 
 app.post("/api/call-me", async (c) => {
   const { to } = await c.req.json();
-  return dial(KEY, { url, agent, to }).then(({ call }) => c.json({ call }), refused);
-});
-
-app.get("/api/log", async (c) => {
-  const call = c.req.query("call") ?? "";
-  if (!mine(c, call)) return c.body(null, 404);
-  const resume = c.req.header("last-event-id");
-  const answer = await fetch(`${url}/v1/calls/${encodeURIComponent(call)}/events`, {
-    headers: { authorization: `Bearer ${KEY}`, accept: "text/event-stream", ...(resume ? { "last-event-id": resume } : {}) },
-    signal: c.req.raw.signal,
-  });
-  return new Response(answer.body, { status: answer.status, headers: { "content-type": "text/event-stream" } });
+  return dial(KEY, { url, agent, to, log: "tenant" }).then(({ call, log_token }) => c.json({ call, log_token }), refused);
 });
 ```
 
-The relay is four lines that matter: the call, the resume cursor, the key on the header, and the
-gateway's status and body passed through as they came. It forwards `last-event-id`, so a page
-whose stream dropped picks up where it was; and it passes a `204` through, so a sealed call is
-known to be over rather than retried.
+**The log is read from the gateway, not relayed.** Beside the seat, the gateway mints a
+`log_token`: it reads that one call's log, its state and its recording, for four hours, before
+the call ends and after, and opens nothing else — no room, no other call, no verb. The page
+follows `GET /v1/calls/{call}/events` with it, and those doors answer a page on any origin. Your
+server keeps no list of the calls it opened, so restarting it touches no call a page is showing.
 
-`mine(c, call)` is yours to write, and it is not optional: a relay that streams any call id it is
-handed is a window onto every call of the org. Keep the call ids a visitor's session minted or
-dialled, and relay only those.
+`log` is what the token reads the call through: `public` (the default) is the turns and the
+state the agent declared public; `tenant` is everything — the tools, the latency, the cost — with a
+`pii` field masked. Ask for `tenant` when the page draws those, as a demo does. `gateway` in
+`room()` names your own box; `https://box.pinecall.io` otherwise.
 
 ## Have the agent call me
 
@@ -175,7 +164,6 @@ Give `room()` a `callMe`, and the page can ask for a phone call instead of a sea
 ```ts
 const call = room({
   tokens,
-  log: (id) => `/api/log?call=${encodeURIComponent(id)}`,
   callMe: async (to) => {
     const answer = await fetch("/api/call-me", {
       method: "POST",
@@ -200,6 +188,15 @@ The gateway refuses a dial to a number that has never called or written to the o
 dials per minute and per day. Those refusals reach the page as a failed call with the gateway's
 sentence.
 
+## Relaying the log yourself
+
+A page that must not reach the gateway — a network that only lets it talk to your own domain —
+gives `room()` a `log` — `(call) => "/api/log?call=" + call` — and the log token is not used.
+Your relay streams `GET /v1/calls/{call}/events` with the key, forwards `last-event-id`, and passes
+the gateway's status and body through as they came. It must relay only the calls that visitor's
+session opened: a relay that streams any call id it is handed is a window onto every call of the
+org. `recording` is then `""`, and the recording is yours to relay too.
+
 ## What `state` says
 
 Every field is the truth at the moment it was published. A new state is a new object; one you were
@@ -211,6 +208,7 @@ handed is never changed afterwards, so it can be compared by reference and kept.
 | `mode` | `talk`, `chat`, `phone`, or `null` before anything started |
 | `call` | the call id, once the tokens or the dial answered it; `""` before |
 | `error` | the sentence to show when `phase` is `failed`; `""` otherwise |
+| `recording` | where the call's recording plays from, with its token: an `<audio src>` once the call has ended; `""` when the log is relayed |
 | `log` | the call as `@pinecall/protocol` folds it: `turns`, `tools`, `app_state`, `status`, `live` (the words being said right now), `cost` |
 | `entries` | every entry of the log read so far, in order |
 | `connection` | the log's stream: `connecting` · `live` · `reconnecting` · `ended` (also before anything opened) |
@@ -226,8 +224,9 @@ score are entries that arrive after the visitor has gone, so `cost` is `null` un
 which comes after `call.ended`. The stream is followed until `call.score`, the last thing a log ever
 says, or for `linger` milliseconds after the call ended (60 000 by default: the worker notices a caller has gone some twenty seconds after the fact, and the score comes after that), whichever is first.
 
-A stream that drops is opened again from the last entry read, after half a second, doubling to
-eight seconds while the relay does not answer.
+A stream that drops, a network that fails, or a gateway answering `5xx` — a proxy while the gateway
+behind it restarts, a deploy — is asked again from the last entry read, after half a second,
+doubling to eight seconds, for as long as it takes. A `4xx` is the gateway saying no, and ends it.
 
 ## Drawing the conversation
 
@@ -310,7 +309,9 @@ Nothing fails silently. Every refusal is a phase and a sentence, or a rejected p
 | `livekit-client` could not be loaded | `failed`, `error` is the loader's message |
 | `callMe` threw | `failed`, `error` is its message |
 | `callMe()` on a room given no `callMe` | `failed`, `error` says so |
-| the log relay answered something other than 2xx or 204 | on the phone: `failed`, "the log answered 401". In a room: `connection` is `ended` and the phase is left to the seat, which is the call |
+| the log answered a `4xx` | on the phone: `failed`, "the log answered 401". In a room: `connection` is `ended` and the phase is left to the seat, which is the call |
+| the log answered a `5xx`, or its stream dropped | `connection` is `reconnecting`, and it resumes where it was; nothing ends |
+| `tokens` or `callMe` answered no `log_token`, and there is no `log` to relay it | `failed`, `error` says so |
 | the room closed from the other side | `ended`; the log is read on until the score |
 | an entry of the log this version cannot read | skipped; `onSkipped(why)` is called, and the rest of the call still draws |
 | `send()` outside a live seat | the promise rejects with "not in a call"; an empty line is nothing |

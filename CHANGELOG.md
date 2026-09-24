@@ -4,6 +4,24 @@ All notable changes to `@pinecall/room`. The format is
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version numbers and tags are the
 maintainer's call.
 
+## 0.1.2 — the log without a relay
+
+### Added
+- **The page reads its call straight from the gateway.** `mint()` and `dial()` answer a
+  `log_token` — one call's log, state and recording, for four hours, opening nothing else — and
+  take `log: "public" | "tenant"`, the projection it reads through. `room()` follows
+  `GET /v1/calls/{call}/events` with it (`gateway`, `https://box.pinecall.io` unless said), and
+  `state.recording` is where the recording plays from. Your server keeps no list of the calls it
+  opened, so restarting it touches no call.
+
+### Changed
+- **A `5xx` is asked again, not the end.** A proxy answering 502 while the gateway behind it
+  restarts was read as a refusal and the page stopped following the call — every deploy froze
+  the transcript while the call went on. A `5xx` now backs off and resumes from the last entry
+  read, like a dropped stream; a `4xx` still ends it.
+- **`log` is optional**: the relay is for a page that must not reach the gateway itself.
+- Needs a gateway that answers `log_token` (the runtime of 2026-09-24) and `@pinecall/protocol` 0.6.6.
+
 ## 0.1.1 — karaoke
 
 ### Added

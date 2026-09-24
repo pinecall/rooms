@@ -78,6 +78,9 @@ function readingLatest(latest: { readonly current: RoomOptions }): RoomOptions {
     get tokens() {
       return latest.current.tokens;
     },
+    get gateway() {
+      return latest.current.gateway;
+    },
     get log() {
       return latest.current.log;
     },

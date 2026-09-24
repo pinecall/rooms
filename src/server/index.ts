@@ -4,11 +4,13 @@
 // with the key, and what comes back to the page is a ticket for one call. Nothing here is imported
 // by the browser side, and nothing here needs more than `fetch`.
 
-/** What `POST /v1/tokens` answers: where the room is, the ticket into it, and the call's id. */
+/** What `POST /v1/tokens` answers: where the room is, the ticket into it, the call's id, and the
+ * token the page reads that call's log and recording with. The protocol's `Minted`, in rest.json. */
 export interface Minted {
   server_url: string;
   participant_token: string;
   call: string;
+  log_token: string;
 }
 
 /** What `POST /v1/agents/{agent}/dial` answers: the call's id, before anything has rung. */
@@ -18,7 +20,12 @@ export interface Dialed {
   to: string;
   from: string;
   env: string;
+  log_token: string;
 }
+
+/** What the page's log token reads the call through: the public projection, or the tenant's own —
+ * the tools, the latency, the cost — when the page draws them. */
+export type LogProjection = "public" | "tenant";
 
 export interface MintOptions {
   /** The gateway, `https://box.pinecall.io` or your own. */
@@ -30,6 +37,7 @@ export interface MintOptions {
   /** Who is calling: memory files the call under it. */
   contact?: string | undefined;
   metadata?: Record<string, unknown> | undefined;
+  log?: LogProjection | undefined;
   fetch?: typeof fetch | undefined;
 }
 
@@ -40,6 +48,7 @@ export interface DialOptions {
   to: string;
   /** Which of the agent's own numbers the far end sees. Unsaid, the first one it answers at. */
   from?: string | undefined;
+  log?: LogProjection | undefined;
   fetch?: typeof fetch | undefined;
 }
 
@@ -61,17 +70,18 @@ const TIMEOUT_MS = 10_000;
 
 /** A ticket for one seat in one new call. The key needs the `talk` scope. */
 export async function mint(key: string, options: MintOptions): Promise<Minted> {
-  const { url, agent, scope, ttl_s, contact, metadata } = options;
-  const body = await post(key, `${bare(url)}/v1/tokens`, { agent, scope, ttl_s, contact, metadata }, options.fetch);
+  const { url, agent, scope, ttl_s, contact, metadata, log } = options;
+  const said = { agent, scope, ttl_s, contact, metadata, log };
+  const body = await post(key, `${bare(url)}/v1/tokens`, said, options.fetch);
   if (!isMinted(body)) throw new Error("the gateway answered /v1/tokens with a shape this package does not know");
   return body;
 }
 
 /** Have the agent call `to`. The key needs the `talk` scope; the number must have reached the org before. */
 export async function dial(key: string, options: DialOptions): Promise<Dialed> {
-  const { url, agent, to, from } = options;
+  const { url, agent, to, from, log } = options;
   const path = `${bare(url)}/v1/agents/${encodeURIComponent(agent)}/dial`;
-  const body = await post(key, path, { to, from }, options.fetch);
+  const body = await post(key, path, { to, from, log }, options.fetch);
   if (!isDialed(body)) throw new Error("the gateway answered the dial with a shape this package does not know");
   return body;
 }
@@ -106,11 +116,11 @@ function bare(url: string): string {
 }
 
 function isMinted(body: unknown): body is Minted {
-  return hasStrings(body, ["server_url", "participant_token", "call"]);
+  return hasStrings(body, ["server_url", "participant_token", "call", "log_token"]);
 }
 
 function isDialed(body: unknown): body is Dialed {
-  return hasStrings(body, ["call", "agent", "to", "from", "env"]);
+  return hasStrings(body, ["call", "agent", "to", "from", "env", "log_token"]);
 }
 
 function hasStrings(body: unknown, fields: string[]): boolean {

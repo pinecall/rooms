@@ -10,7 +10,7 @@ describe("livekit", () => {
     const { store, livekit, gateway } = aRoom({
       tokens: async () => {
         if (fail) throw new Error("no");
-        return { server_url: "wss://lk.example", participant_token: "ticket", call: CALL };
+        return { server_url: "wss://lk.example", participant_token: "ticket", call: CALL, log_token: "log_1" };
       },
       callMe: async () => ({ call: CALL }),
     });

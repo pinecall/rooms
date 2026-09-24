@@ -9,7 +9,7 @@ import { BOOKING } from "./a-real-booking.js";
 
 export const CALL = "call_1";
 export const LOG = `/api/log?call=${CALL}`;
-export const MINTED: Minted = { server_url: "wss://lk.example", participant_token: "ticket", call: CALL };
+export const MINTED: Minted = { server_url: "wss://lk.example", participant_token: "ticket", call: CALL, log_token: "log_1" };
 
 export interface AtHand {
   store: RoomStore;

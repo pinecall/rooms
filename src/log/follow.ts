@@ -7,7 +7,7 @@ import { SseParser, type SseMessage } from "./sse.js";
 /** What the page can honestly say about its stream. Nothing here is a guess. */
 export type Connection = "connecting" | "live" | "reconnecting" | "ended";
 
-/** Why a follow stopped by itself: the score arrived, the call was sealed, or the relay said no. */
+/** Why a follow stopped by itself: the score arrived, the call was sealed, or the gateway said no. */
 export type Ending = { kind: "scored" } | { kind: "sealed" } | { kind: "refused"; status: number };
 
 /** What the room wants of its stream: every message in order, and how the connection is going. */
@@ -20,12 +20,15 @@ export interface LogReader {
 }
 
 // A dropped stream is opened again after this, doubling to the ceiling: a gateway restarting is
-// seconds, and a page hammering it every 100 ms would only make those seconds longer.
+// seconds, and a page hammering it every 100 ms would only make those seconds longer. A 5xx is the
+// same thing seen from a proxy — the gateway behind it is restarting — and is asked again too.
 const RECONNECT_MS = 500;
 const RECONNECT_CEILING_MS = 8_000;
 
 // The relay answers 204 to a sealed call whose cursor is at the end: nothing more will be said.
 const NOTHING_MORE = 204;
+// From here up the gateway, or the proxy in front of it, is away rather than saying no.
+const AWAY = 500;
 
 /** Open the log at `url`. Returns the call that stops it; stopping twice is stopping once. */
 export function followLog(url: string, reader: LogReader, fetcher: typeof fetch): () => void {
@@ -81,6 +84,11 @@ export function followLog(url: string, reader: LogReader, fetcher: typeof fetch)
       }
       if (!ours) return;
       if (answer.status === NOTHING_MORE) return end({ kind: "sealed" });
+      if (answer.status >= AWAY) {
+        await answer.body?.cancel().catch(() => undefined);
+        await again();
+        continue;
+      }
       if (!answer.ok || answer.body === null) return end({ kind: "refused", status: answer.status });
       reader.onConnection("live");
       backoff = RECONNECT_MS;

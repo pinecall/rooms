@@ -2,8 +2,8 @@
 //
 // Two things happen at once and they are not the same thing. LiveKit carries the audio and the
 // typed lines — the room the visitor joins with a ticket the tenant's own server minted, so the
-// org's key never reaches a browser. The call's LOG, relayed by that same server, carries what the
-// agent is actually doing: the turns, every tool it called and what came back, its declared state.
+// org's key never reaches a browser. The call's LOG, read straight from the gateway with the token
+// minted beside that ticket for that one call, carries what the agent is actually doing: the turns, every tool it called and what came back, its declared state.
 // The log is folded by the protocol's own reducer, so what the page draws is what the console
 // draws, from the same bytes. A phone call has no seat at all: the log is the whole of it.
 
@@ -33,6 +33,8 @@ export interface RoomState {
   call: string;
   /** The sentence to show when phase is "failed". */
   error: string;
+  /** Where the call's recording plays from once it has ended, or "" when the log is relayed. */
+  recording: string;
   /** The call as the protocol folds it: turns, tools, the agent's state, the cost once it is known. */
   log: State;
   entries: Entry[];
@@ -45,10 +47,13 @@ export interface RoomState {
 export interface RoomOptions {
   /** A ticket for a seat, from the tenant's own server. The page never holds a key. */
   tokens: (scope: "talk" | "chat") => Promise<Minted>;
-  /** The URL the call's log is relayed at by the tenant's server. */
-  log: (call: string, minted?: Minted) => string;
-  /** Ask the tenant's server to have the agent call `to`. */
-  callMe?: ((to: string) => Promise<{ call: string }>) | undefined;
+  /** The gateway the log is read from with the call's own token. Default `https://box.pinecall.io`. */
+  gateway?: string | undefined;
+  /** The URL the call's log is relayed at by the tenant's server, for a page that must not reach
+   * the gateway itself. Given, the log token is not used. */
+  log?: ((call: string, minted?: Minted) => string) | undefined;
+  /** Ask the tenant's server to have the agent call `to`: the call, and its log token. */
+  callMe?: ((to: string) => Promise<{ call: string; log_token?: string | undefined }>) | undefined;
   /** How long the log is read after the seat closes, waiting for the score. Default 60 000 ms: a worker
    * notices a caller has gone some twenty seconds after the fact, and the score comes after that. */
   linger?: number | undefined;
@@ -72,6 +77,8 @@ const PARTING_MS = 3_000;
 const QUIET: Speaking = { agent: false, user: false, level: 0 };
 const NO_MICROPHONE = "I could not get to your microphone. Check the browser's permission, or write instead.";
 const NO_CALL_ME = "room() was given no callMe: the call is placed by your server";
+const NO_LOG_TOKEN = "the server answered no log_token, and room() was given no log to relay it through";
+const GATEWAY = "https://box.pinecall.io";
 
 /** One conversation's resources. A new start is a new one; the old one is shut first. */
 interface Conversation {
@@ -102,6 +109,18 @@ export function room(options: RoomOptions): RoomStore {
     const seat = c.seat;
     c.seat = null;
     return seat === null ? Promise.resolve() : seat.leave().catch(() => undefined);
+  };
+
+  // Where the call is read: the tenant's relay when it gave one, the gateway with the call's own
+  // token otherwise. None when neither is there to read it with.
+  const read = (call: string, token: string | undefined, minted?: Minted): { log: string; recording: string } | null => {
+    if (options.log !== undefined) {
+      return { log: minted === undefined ? options.log(call) : options.log(call, minted), recording: "" };
+    }
+    if (typeof token !== "string" || token === "") return null;
+    const at = `${bare(options.gateway ?? GATEWAY)}/v1/calls/${encodeURIComponent(call)}`;
+    const ticket = `?token=${encodeURIComponent(token)}`;
+    return { log: `${at}/events${ticket}`, recording: `${at}/recording${ticket}` };
   };
 
   // A verb's first move, read from the store and never from a closure: a second click while the
@@ -251,10 +270,12 @@ export function room(options: RoomOptions): RoomStore {
         return fail(c, messageOf(refused));
       }
       if (!current(c) || store.state.phase !== "opening") return;
-      publish({ call: minted.call });
+      const reading = read(minted.call, minted.log_token, minted);
+      if (reading === null) return fail(c, NO_LOG_TOKEN);
+      publish({ call: minted.call, recording: reading.recording });
       // The call id exists before the room is joined, so the log is followed from its first entry
       // rather than from wherever the room happened to open.
-      follow(c, options.log(minted.call, minted));
+      follow(c, reading.log);
       await seated(c, mode, minted);
     },
 
@@ -263,15 +284,17 @@ export function room(options: RoomOptions): RoomStore {
       if (c === null) return;
       const dial = options.callMe;
       if (dial === undefined) return fail(c, NO_CALL_ME);
-      let placed: { call: string };
+      let placed: { call: string; log_token?: string | undefined };
       try {
         placed = await dial(to);
       } catch (refused) {
         return fail(c, messageOf(refused));
       }
       if (!current(c) || store.state.phase !== "opening") return;
-      publish({ call: placed.call, phase: "ringing" });
-      follow(c, options.log(placed.call));
+      const reading = read(placed.call, placed.log_token);
+      if (reading === null) return fail(c, NO_LOG_TOKEN);
+      publish({ call: placed.call, phase: "ringing", recording: reading.recording });
+      follow(c, reading.log);
     },
 
     async send(text) {
@@ -322,12 +345,17 @@ function idle(): RoomState {
     mode: null,
     call: "",
     error: "",
+    recording: "",
     log: initialState(),
     entries: [],
     connection: "ended",
     wantsSound: false,
     speaking: QUIET,
   };
+}
+
+function bare(url: string): string {
+  return url.replace(/\/+$/, "");
 }
 
 function messageOf(refused: unknown): string {
