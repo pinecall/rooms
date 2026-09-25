@@ -6,6 +6,8 @@ maintainer's call.
 
 ## Unreleased
 
+## 0.1.3 — the visitor calls, and the page follows
+
 ### Added
 - **The visitor calls the agent, and the page follows that call.** `expect(key, {url, agent,
   ttl_s?, log?})` in `@pinecall/room/server` asks `POST /v1/codes` for a four-digit code, the
