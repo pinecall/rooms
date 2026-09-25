@@ -1,8 +1,9 @@
-// The tenant's server holds the key: it mints a seat's ticket and places a call, and a refusal keeps the gateway's sentence.
+// The tenant's server holds the key: it mints a seat's ticket, places a call, asks for a code, and a refusal keeps the gateway's sentence.
 
 import { describe, expect, it } from "vitest";
 
-import { dial, GatewayRefused, mint } from "../src/server/index.js";
+// `expect` is vitest's here: the server's is named for what it asks.
+import { dial, expect as askForACode, GatewayRefused, mint } from "../src/server/index.js";
 
 const KEY = "pk_test_not_a_real_key";
 
@@ -33,6 +34,7 @@ function gateway(status: number, body: string): { fetch: typeof fetch; posted: P
 }
 
 const MINTED = { server_url: "wss://lk.example", participant_token: "ticket", call: "call_1", log_token: "log_1" };
+const CODE = { code: "4821", number: "+34910000000", expires_at: 1_790_000_600, code_token: "code_1" };
 const DIALED = { call: "call_2", agent: "clinica", to: "+34600000001", from: "+34910000000", env: "production", log_token: "log_2" };
 
 describe("the server", () => {
@@ -67,6 +69,37 @@ describe("the server", () => {
     expect(posted[0]?.url).toBe("https://gw.example/v1/agents/clinica/dial");
     expect(posted[0]?.body).toEqual({ to: "+34600000001" });
     expect(posted[0]?.authorization).toBe(`Bearer ${KEY}`);
+  });
+
+  it("asks for a code with the key: {agent, ttl_s, log} to /v1/codes", async () => {
+    const { fetch, posted } = gateway(201, JSON.stringify(CODE));
+    const code = await askForACode(KEY, { url: "https://gw.example/", agent: "clinica", ttl_s: 300, log: "tenant", fetch });
+
+    expect(code).toEqual(CODE);
+    expect(posted).toEqual([
+      {
+        url: "https://gw.example/v1/codes",
+        method: "POST",
+        authorization: `Bearer ${KEY}`,
+        body: { agent: "clinica", ttl_s: 300, log: "tenant" },
+        timed: true,
+      },
+    ]);
+  });
+
+  it("refuses a code the gateway answered in a shape it does not know", async () => {
+    const { fetch } = gateway(201, JSON.stringify({ ...CODE, expires_at: "soon" }));
+    const asked = askForACode(KEY, { url: "https://gw.example", agent: "clinica", fetch });
+
+    await expect(asked).rejects.toThrow("the gateway answered /v1/codes with a shape this package does not know");
+  });
+
+  it("keeps the gateway's sentence when the agent answers at no number", async () => {
+    const detail = "agent clinica answers at no phone number in production: pinecall numbers import";
+    const { fetch } = gateway(409, JSON.stringify({ detail }));
+    const asked = askForACode(KEY, { url: "https://gw.example", agent: "clinica", fetch });
+
+    await expect(asked).rejects.toMatchObject({ status: 409, detail });
   });
 
   it("throws GatewayRefused with the gateway's own sentence", async () => {

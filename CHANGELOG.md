@@ -4,6 +4,18 @@ All notable changes to `@pinecall/room`. The format is
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version numbers and tags are the
 maintainer's call.
 
+## Unreleased
+
+### Added
+- **The visitor calls the agent, and the page follows that call.** `expect(key, {url, agent,
+  ttl_s?, log?})` in `@pinecall/room/server` asks `POST /v1/codes` for a four-digit code, the
+  agent's number and a token that reads that code. `room({expect})` and `byPhone()` show them
+  (`phase: "expecting"`, `state.code: {code, number, expiresAt}`), ask the gateway until a call
+  claims the code, and follow the claimed call live from its log. An expired code fails with
+  "the code expired: ask for another"; a `5xx` is asked again; `leave()` stops the asking.
+  `useRoom` hands back `byPhone`.
+- Needs a gateway that answers `/v1/codes` and `@pinecall/protocol` 0.6.9.
+
 ## 0.1.2 — the log without a relay
 
 ### Added

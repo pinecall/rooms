@@ -1,4 +1,4 @@
-/** @pinecall/room/server: what a tenant's server does with its key — a ticket for a seat, a call placed. */
+/** @pinecall/room/server: what a tenant's server does with its key — a ticket for a seat, a call placed, a code to call with. */
 //
 // The key never reaches a page. The page asks the tenant's own server, the server asks the gateway
 // with the key, and what comes back to the page is a ticket for one call. Nothing here is imported
@@ -11,6 +11,16 @@ export interface Minted {
   participant_token: string;
   call: string;
   log_token: string;
+}
+
+/** What `POST /v1/codes` answers: the four digits a page shows beside the agent's number, when
+ * they stop being a code (seconds since the epoch), and the token the page asks about them with.
+ * The protocol's `Code`, in rest.json. */
+export interface Code {
+  code: string;
+  number: string;
+  expires_at: number;
+  code_token: string;
 }
 
 /** What `POST /v1/agents/{agent}/dial` answers: the call's id, before anything has rung. */
@@ -52,6 +62,16 @@ export interface DialOptions {
   fetch?: typeof fetch | undefined;
 }
 
+export interface ExpectOptions {
+  url: string;
+  agent: string;
+  /** How long the code lives. The gateway's default is 600 s: 60 s the least, 1800 s the most. */
+  ttl_s?: number | undefined;
+  /** What the log token the page is handed once a call claims the code reads it through. */
+  log?: LogProjection | undefined;
+  fetch?: typeof fetch | undefined;
+}
+
 /** The gateway said no. `detail` is its own sentence when it sent one; it names the fix. */
 export class GatewayRefused extends Error {
   override readonly name = "GatewayRefused";
@@ -83,6 +103,15 @@ export async function dial(key: string, options: DialOptions): Promise<Dialed> {
   const path = `${bare(url)}/v1/agents/${encodeURIComponent(agent)}/dial`;
   const body = await post(key, path, { to, from, log }, options.fetch);
   if (!isDialed(body)) throw new Error("the gateway answered the dial with a shape this package does not know");
+  return body;
+}
+
+/** A code for a page to show beside the agent's number, for the visitor to key when they call it.
+ * The key needs the `talk` scope; the agent must answer at a phone number in the key's world. */
+export async function expect(key: string, options: ExpectOptions): Promise<Code> {
+  const { url, agent, ttl_s, log } = options;
+  const body = await post(key, `${bare(url)}/v1/codes`, { agent, ttl_s, log }, options.fetch);
+  if (!isCode(body)) throw new Error("the gateway answered /v1/codes with a shape this package does not know");
   return body;
 }
 
@@ -121,6 +150,11 @@ function isMinted(body: unknown): body is Minted {
 
 function isDialed(body: unknown): body is Dialed {
   return hasStrings(body, ["call", "agent", "to", "from", "env", "log_token"]);
+}
+
+function isCode(body: unknown): body is Code {
+  if (!hasStrings(body, ["code", "number", "code_token"]) || typeof body !== "object" || body === null) return false;
+  return typeof Reflect.get(body, "expires_at") === "number";
 }
 
 function hasStrings(body: unknown, fields: string[]): boolean {

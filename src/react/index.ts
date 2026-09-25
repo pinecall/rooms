@@ -12,7 +12,7 @@ export function useStore<T>(store: Store<T>): T {
 }
 
 /** What `useRoom` hands a component: the state, and the verbs to change it. */
-export type RoomHandle = RoomState & Pick<RoomStore, "start" | "send" | "callMe" | "leave" | "playSound">;
+export type RoomHandle = RoomState & Pick<RoomStore, "start" | "send" | "callMe" | "byPhone" | "leave" | "playSound">;
 
 /**
  * One room for as long as the component is mounted, closed when it unmounts. The options are read
@@ -40,8 +40,8 @@ export function useRoom(options: RoomOptions): RoomHandle {
     };
   }, [store]);
   const state = useStore(store);
-  const { start, send, callMe, leave, playSound } = store;
-  return { ...state, start, send, callMe, leave, playSound };
+  const { start, send, callMe, byPhone, leave, playSound } = store;
+  return { ...state, start, send, callMe, byPhone, leave, playSound };
 }
 
 /**
@@ -86,6 +86,9 @@ function readingLatest(latest: { readonly current: RoomOptions }): RoomOptions {
     },
     get callMe() {
       return latest.current.callMe;
+    },
+    get expect() {
+      return latest.current.expect;
     },
     get linger() {
       return latest.current.linger;

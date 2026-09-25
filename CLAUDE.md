@@ -25,12 +25,14 @@ package with pnpm.
 
 - `src/store.ts` the primitive: `{state, subscribe, close}`, a paint every 100 ms for the log
 - `src/room.ts` one conversation: the phases, the verbs, the seat and the log joined
-- `src/log/` the SSE parser, the follow (fetch, resume, backoff, the score), the fold
+- `src/reading.ts` where a call is read: the relay, or the gateway with the call's token ·
+  `src/code.ts` a code waited on until a call claims it
+- `src/log/` the SSE parser, the follow (fetch, resume, the score), the backoff both askers share, the fold
 - `src/seat/` the LiveKit loader and its minimal type, the seat, the hidden audio sink.
   `seat/join.ts` is the only file naming LiveKit's events; `seat/livekit.ts` the only one naming
   the package
 - `src/rows.ts` the log as one column of rows · `src/karaoke.ts` the reply being said, word by word
-- `src/react/` the hooks · `src/server/` mint and dial
+- `src/react/` the hooks · `src/server/` mint, dial and expect
 - `test/` one file per sentence it proves; `test/seat` and `test/react` mirror their `src/`
   directories and run on happy-dom. `the-tree`, `the-imports` and `index` are the repo's rules
 

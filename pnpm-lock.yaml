@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@pinecall/protocol':
-        specifier: ^0.6.6
+        specifier: ^0.6.9
         version: link:../protocol/typescript
     devDependencies:
       '@types/node':

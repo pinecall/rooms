@@ -2,7 +2,7 @@
 
 import type { Entry } from "@pinecall/protocol";
 
-import { room, type Minted, type RoomOptions, type RoomState, type RoomStore } from "../src/room.js";
+import { room, type Code, type Minted, type RoomOptions, type RoomState, type RoomStore } from "../src/room.js";
 import { FakeGateway } from "./a-fake-gateway.js";
 import { FakeLivekit } from "./a-fake-livekit.js";
 import { BOOKING } from "./a-real-booking.js";
@@ -10,6 +10,10 @@ import { BOOKING } from "./a-real-booking.js";
 export const CALL = "call_1";
 export const LOG = `/api/log?call=${CALL}`;
 export const MINTED: Minted = { server_url: "wss://lk.example", participant_token: "ticket", call: CALL, log_token: "log_1" };
+/** A code as the tenant's server hands it on, and where the page asks the gateway about it. */
+export const GW = "https://gw.example";
+export const CODE: Code = { code: "4821", number: "+34910000000", expires_at: 1_790_000_600, code_token: "code_1" };
+export const ASKED = `${GW}/v1/codes/4821?wait=1&token=code_1`;
 
 export interface AtHand {
   store: RoomStore;

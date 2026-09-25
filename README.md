@@ -13,7 +13,7 @@ that change it. The package has three entry points, and each one is for a differ
 |---|---|---|
 | `@pinecall/room` | the page | `room()`, the store of one conversation, `rowsOf`, `knownBy`, `brief` to draw it, and the karaoke of what is being said |
 | `@pinecall/room/react` | the page, in React | `useRoom()` and `useStore()` |
-| `@pinecall/room/server` | your server | `mint()`, `dial()` and `GatewayRefused`: the only code that touches the key |
+| `@pinecall/room/server` | your server | `mint()`, `dial()`, `expect()` and `GatewayRefused`: the only code that touches the key |
 
 A conversation has two parts, and they are not the same thing. **The seat** is a LiveKit room: it
 carries the audio and the typed lines. **The log** is the call's record on the gateway, read
@@ -101,7 +101,7 @@ export function Visitor() {
 `useRoom` makes one room per mounted component and closes it when the component unmounts. The
 options are read when they are used, not when the room is made, so a `tokens` written inline — a
 new function every render — is fine: the one from the last render is the one that runs. It hands
-back the state with the five verbs beside it.
+back the state with the six verbs beside it.
 
 `useStore(store)` is the plain version: any store of this package, read with React's
 `useSyncExternalStore`. `useRoom` is `useStore` over a room it owns.
@@ -188,6 +188,39 @@ The gateway refuses a dial to a number that has never called or written to the o
 dials per minute and per day. Those refusals reach the page as a failed call with the gateway's
 sentence.
 
+## Let the visitor call you
+
+Give `room()` an `expect`, and the page can show the agent's phone number and a four-digit code
+instead: the visitor calls the number, keys the code on the phone (or says it, and the agent
+claims it), and from that moment the page follows that call. Your server asks for the code:
+
+```ts
+import { expect } from "@pinecall/room/server";
+
+app.post("/api/expect", async (c) => expect(KEY, { url, agent, log: "tenant" }).then((code) => c.json(code), refused));
+```
+
+The page hands the answer to the room as it came, and calls `byPhone()`:
+
+```ts
+const call = room({ tokens, expect: async () => (await fetch("/api/expect", { method: "POST" })).json() });
+
+await call.byPhone();
+```
+
+The phase is `expecting` while the page waits, and `state.code` is `{code, number, expiresAt}`:
+show "call `number` and key `code`", and `expiresAt` (seconds since the epoch) as a countdown if
+you like. The page asks the gateway about the code with the code's own token, which reads that
+code and nothing else; the gateway holds each ask up to 25 seconds, and a network that fails or a
+`5xx` is asked again the way the log is. When a call claims the code the phase goes straight to
+`live` — the caller is on the phone already — and the call is followed like any other: `call`,
+the log, `speaking`, `ended`. A code lives ten minutes unless `ttl_s` says otherwise (60 to 1800
+seconds); an expired one fails with "the code expired: ask for another". `leave()` while
+`expecting` stops the asking at once.
+
+The agent must answer at a phone number in the key's world, or `expect()` throws the gateway's
+409 naming the fix.
+
 ## Relaying the log yourself
 
 A page that must not reach the gateway — a network that only lets it talk to your own domain —
@@ -204,7 +237,7 @@ handed is never changed afterwards, so it can be compared by reference and kept.
 
 | field | what it is |
 |---|---|
-| `phase` | `idle` · `opening` (minting, joining) · `ringing` (a phone call not yet answered) · `live` · `ended` · `failed` |
+| `phase` | `idle` · `opening` (minting, joining) · `expecting` (a code shown, no call has claimed it yet) · `ringing` (a phone call not yet answered) · `live` · `ended` · `failed` |
 | `mode` | `talk`, `chat`, `phone`, or `null` before anything started |
 | `call` | the call id, once the tokens or the dial answered it; `""` before |
 | `error` | the sentence to show when `phase` is `failed`; `""` otherwise |
@@ -214,6 +247,7 @@ handed is never changed afterwards, so it can be compared by reference and kept.
 | `connection` | the log's stream: `connecting` · `live` · `reconnecting` · `ended` (also before anything opened) |
 | `wantsSound` | `true` when the browser has not let the page play sound yet: show a button that calls `playSound()` |
 | `speaking` | `{agent, user, level}`: who is making a sound right now, and how loud the agent is, 0 to 1 |
+| `code` | `{code, number, expiresAt}` once `byPhone()` has a code to show; `null` otherwise |
 
 The phase and everything around it — `error`, `connection`, `wantsSound`, `speaking` — are
 published the moment they change. The log is painted at most ten times a second: a burst of
@@ -309,6 +343,10 @@ Nothing fails silently. Every refusal is a phase and a sentence, or a rejected p
 | `livekit-client` could not be loaded | `failed`, `error` is the loader's message |
 | `callMe` threw | `failed`, `error` is its message |
 | `callMe()` on a room given no `callMe` | `failed`, `error` says so |
+| `expect` threw | `failed`, `error` is its message |
+| `byPhone()` on a room given no `expect` | `failed`, `error` says so |
+| the code expired before a call claimed it | `failed`, "the code expired: ask for another" |
+| the gateway answered a `4xx` about the code | `failed`, "the code answered 403" |
 | the log answered a `4xx` | on the phone: `failed`, "the log answered 401". In a room: `connection` is `ended` and the phase is left to the seat, which is the call |
 | the log answered a `5xx`, or its stream dropped | `connection` is `reconnecting`, and it resumes where it was; nothing ends |
 | `tokens` or `callMe` answered no `log_token`, and there is no `log` to relay it | `failed`, `error` says so |
@@ -316,7 +354,7 @@ Nothing fails silently. Every refusal is a phase and a sentence, or a rejected p
 | an entry of the log this version cannot read | skipped; `onSkipped(why)` is called, and the rest of the call still draws |
 | `send()` outside a live seat | the promise rejects with "not in a call"; an empty line is nothing |
 
-On the server, `mint` and `dial` throw `GatewayRefused` for a refusal: `status` is the gateway's,
+On the server, `mint`, `dial` and `expect` throw `GatewayRefused` for a refusal: `status` is the gateway's,
 and `detail` its sentence when it sent one (`null` when the body was not the gateway's JSON). The
 sentence names the fix — a quota, a scope the key does not hold, a number the org cannot call —
 so pass it on rather than rewording it.

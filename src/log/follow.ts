@@ -2,6 +2,7 @@
 
 import { TERMINAL_EVENT } from "@pinecall/protocol";
 
+import { AWAY, Backoff } from "./backoff.js";
 import { SseParser, type SseMessage } from "./sse.js";
 
 /** What the page can honestly say about its stream. Nothing here is a guess. */
@@ -19,22 +20,14 @@ export interface LogReader {
   onEnded: (ending: Ending) => void;
 }
 
-// A dropped stream is opened again after this, doubling to the ceiling: a gateway restarting is
-// seconds, and a page hammering it every 100 ms would only make those seconds longer. A 5xx is the
-// same thing seen from a proxy — the gateway behind it is restarting — and is asked again too.
-const RECONNECT_MS = 500;
-const RECONNECT_CEILING_MS = 8_000;
-
 // The relay answers 204 to a sealed call whose cursor is at the end: nothing more will be said.
 const NOTHING_MORE = 204;
-// From here up the gateway, or the proxy in front of it, is away rather than saying no.
-const AWAY = 500;
 
 /** Open the log at `url`. Returns the call that stops it; stopping twice is stopping once. */
 export function followLog(url: string, reader: LogReader, fetcher: typeof fetch): () => void {
   const controller = new AbortController();
   let lastId: string | null = null;
-  let backoff = RECONNECT_MS;
+  const backoff = new Backoff();
   let ours = true;
 
   const stop = (): void => {
@@ -49,8 +42,7 @@ export function followLog(url: string, reader: LogReader, fetcher: typeof fetch)
 
   const again = async (): Promise<void> => {
     reader.onConnection("reconnecting");
-    await slept(backoff, controller.signal);
-    backoff = Math.min(backoff * 2, RECONNECT_CEILING_MS);
+    await backoff.wait(controller.signal);
   };
 
   const read = async (body: ReadableStream<Uint8Array>): Promise<void> => {
@@ -91,7 +83,7 @@ export function followLog(url: string, reader: LogReader, fetcher: typeof fetch)
       }
       if (!answer.ok || answer.body === null) return end({ kind: "refused", status: answer.status });
       reader.onConnection("live");
-      backoff = RECONNECT_MS;
+      backoff.reset();
       try {
         await read(answer.body);
       } catch {
@@ -106,18 +98,4 @@ export function followLog(url: string, reader: LogReader, fetcher: typeof fetch)
   reader.onConnection("connecting");
   void connect();
   return stop;
-}
-
-function slept(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((wake) => {
-    const timer = setTimeout(wake, ms);
-    signal.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        wake();
-      },
-      { once: true },
-    );
-  });
 }
