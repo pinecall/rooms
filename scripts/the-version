@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# The version this repo declares, and the one condition that cannot be fixed after publishing: no
+# dependency may go out as `workspace:`, `file:` or `link:`, since the registry has no checkout to
+# resolve it to. Prints the version, or the reason.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+version=$(node -p "require('./package.json').version")
+
+linked=$(node -e '
+const p = require("./package.json");
+const fields = ["dependencies", "optionalDependencies", "peerDependencies"];
+const bad = fields.flatMap((f) =>
+  Object.entries(p[f] ?? {}).filter(([, r]) => /^(workspace|file|link):/.test(r))
+    .map(([n, r]) => `${f}.${n} = ${r}`));
+console.log(bad.join("\n"));
+')
+if [ -n "$linked" ]; then
+  echo "dependencies tied to a checkout the registry does not have:" >&2
+  echo "$linked" >&2
+  exit 1
+fi
+echo "$version"
