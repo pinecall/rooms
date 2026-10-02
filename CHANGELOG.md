@@ -4,7 +4,7 @@ All notable changes to `@pinecall/room`. The format is
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version numbers and tags are the
 maintainer's call.
 
-## Unreleased
+## 0.1.4 — the wire of its own, in dollars
 
 ### Changed
 - **No `@pinecall/protocol` dependency.** The package keeps the runtime's wire it speaks in
