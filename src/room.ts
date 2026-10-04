@@ -54,7 +54,7 @@ export interface RoomState {
 export interface RoomOptions {
   /** A ticket for a seat, from the tenant's own server. The page never holds a key. */
   tokens: (scope: "talk" | "chat") => Promise<Minted>;
-  /** The gateway the log is read from with the call's own token. Default `https://box.pinecall.io`. */
+  /** The gateway the log is read from with the call's own token. Default `https://cloud.pinecall.io`. */
   gateway?: string | undefined;
   /** The URL the call's log is relayed at by the tenant's server, for a page that must not reach
    * the gateway itself. Given, the log token is not used. */

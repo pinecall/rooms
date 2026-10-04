@@ -3,7 +3,7 @@
 import type { Minted } from "./server/index.js";
 import type { RoomOptions } from "./room.js";
 
-const GATEWAY = "https://box.pinecall.io";
+const GATEWAY = "https://cloud.pinecall.io";
 
 /** The gateway the page asks, with no slash at the end. */
 export function gatewayOf(options: Pick<RoomOptions, "gateway">): string {

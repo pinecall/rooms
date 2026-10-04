@@ -38,7 +38,7 @@ export interface Dialed {
 export type LogProjection = "public" | "tenant";
 
 export interface MintOptions {
-  /** The gateway, `https://box.pinecall.io` or your own. */
+  /** The gateway, `https://cloud.pinecall.io` or your own. */
   url: string;
   agent: string;
   scope: "talk" | "chat";

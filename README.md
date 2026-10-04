@@ -125,7 +125,7 @@ import { Hono } from "hono";
 import { dial, GatewayRefused, mint } from "@pinecall/room/server";
 
 const KEY = process.env.PINECALL_KEY!;
-const url = "https://box.pinecall.io";
+const url = "https://cloud.pinecall.io";
 const agent = "clinica-norte";
 const app = new Hono();
 
@@ -155,7 +155,7 @@ server keeps no list of the calls it opened, so restarting it touches no call a 
 `log` is what the token reads the call through: `public` (the default) is the turns and the
 state the agent declared public; `tenant` is everything — the tools, the latency, the cost — with a
 `pii` field masked. Ask for `tenant` when the page draws those, as a demo does. `gateway` in
-`room()` names your own box; `https://box.pinecall.io` otherwise.
+`room()` names your own box; `https://cloud.pinecall.io` otherwise.
 
 ## Have the agent call me
 
