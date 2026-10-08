@@ -141,7 +141,7 @@
    "label": "livekit.plugins.anthropic.llm.LLM",
    "duration": 1.603380917920731,
    "metadata": {
-    "model_name": "claude-haiku-4-5-20251001",
+    "model_name": "claude-haiku-5-5",
     "model_provider": "api.anthropic.com"
    },
    "cancelled": false,
@@ -167,7 +167,7 @@
    "metrics": {
     "e2e_latency": 1.6226044580107555,
     "llm_metadata": {
-     "model_name": "claude-haiku-4-5-20251001",
+     "model_name": "claude-haiku-5-5",
      "model_provider": "anthropic"
     },
     "llm_node_tps": 72.34712519245217,
@@ -255,7 +255,7 @@
    "label": "livekit.plugins.anthropic.llm.LLM",
    "duration": 0.9071863170247525,
    "metadata": {
-    "model_name": "claude-haiku-4-5-20251001",
+    "model_name": "claude-haiku-5-5",
     "model_provider": "api.anthropic.com"
    },
    "cancelled": false,
@@ -503,7 +503,7 @@
    "label": "livekit.plugins.anthropic.llm.LLM",
    "duration": 1.173071499913931,
    "metadata": {
-    "model_name": "claude-haiku-4-5-20251001",
+    "model_name": "claude-haiku-5-5",
     "model_provider": "api.anthropic.com"
    },
    "cancelled": false,
@@ -529,7 +529,7 @@
    "metrics": {
     "e2e_latency": 2.2930643399013206,
     "llm_metadata": {
-     "model_name": "claude-haiku-4-5-20251001",
+     "model_name": "claude-haiku-5-5",
      "model_provider": "anthropic"
     },
     "llm_node_tps": 74.95703883962419,
@@ -607,7 +607,7 @@
    "label": "livekit.plugins.anthropic.llm.LLM",
    "duration": 0.8443659129552543,
    "metadata": {
-    "model_name": "claude-haiku-4-5-20251001",
+    "model_name": "claude-haiku-5-5",
     "model_provider": "api.anthropic.com"
    },
    "cancelled": false,
@@ -786,7 +786,7 @@
    "label": "livekit.plugins.anthropic.llm.LLM",
    "duration": 0.9552348580909893,
    "metadata": {
-    "model_name": "claude-haiku-4-5-20251001",
+    "model_name": "claude-haiku-5-5",
     "model_provider": "api.anthropic.com"
    },
    "cancelled": false,
@@ -812,7 +812,7 @@
    "metrics": {
     "e2e_latency": 1.9683381139766425,
     "llm_metadata": {
-     "model_name": "claude-haiku-4-5-20251001",
+     "model_name": "claude-haiku-5-5",
      "model_provider": "anthropic"
     },
     "llm_node_tps": 94.7456532441042,
@@ -892,7 +892,7 @@
    "label": "livekit.plugins.anthropic.llm.LLM",
    "duration": 0.8119732679333538,
    "metadata": {
-    "model_name": "claude-haiku-4-5-20251001",
+    "model_name": "claude-haiku-5-5",
     "model_provider": "api.anthropic.com"
    },
    "cancelled": false,
@@ -1084,7 +1084,7 @@
    "label": "livekit.plugins.anthropic.llm.LLM",
    "duration": 1.3133738670730963,
    "metadata": {
-    "model_name": "claude-haiku-4-5-20251001",
+    "model_name": "claude-haiku-5-5",
     "model_provider": "api.anthropic.com"
    },
    "cancelled": false,
@@ -1110,7 +1110,7 @@
    "metrics": {
     "e2e_latency": 2.369057337054983,
     "llm_metadata": {
-     "model_name": "claude-haiku-4-5-20251001",
+     "model_name": "claude-haiku-5-5",
      "model_provider": "anthropic"
     },
     "llm_node_tps": 135.47244021958213,
@@ -1186,7 +1186,7 @@
    "label": "livekit.plugins.anthropic.llm.LLM",
    "duration": 0.6810614879941568,
    "metadata": {
-    "model_name": "claude-haiku-4-5-20251001",
+    "model_name": "claude-haiku-5-5",
     "model_provider": "api.anthropic.com"
    },
    "cancelled": false,
@@ -1494,7 +1494,7 @@
    "label": "livekit.plugins.anthropic.llm.LLM",
    "duration": 1.1247026670025662,
    "metadata": {
-    "model_name": "claude-haiku-4-5-20251001",
+    "model_name": "claude-haiku-5-5",
     "model_provider": "api.anthropic.com"
    },
    "cancelled": false,
@@ -1520,7 +1520,7 @@
    "metrics": {
     "e2e_latency": 2.616583741037175,
     "llm_metadata": {
-     "model_name": "claude-haiku-4-5-20251001",
+     "model_name": "claude-haiku-5-5",
      "model_provider": "anthropic"
     },
     "llm_node_tps": 82.2245876285409,
@@ -1593,7 +1593,7 @@
    "label": "livekit.plugins.anthropic.llm.LLM",
    "duration": 0.6022735349833965,
    "metadata": {
-    "model_name": "claude-haiku-4-5-20251001",
+    "model_name": "claude-haiku-5-5",
     "model_provider": "api.anthropic.com"
    },
    "cancelled": false,
@@ -1619,7 +1619,7 @@
    "metrics": {
     "e2e_latency": 0.6210793869104236,
     "llm_metadata": {
-     "model_name": "claude-haiku-4-5-20251001",
+     "model_name": "claude-haiku-5-5",
      "model_provider": "anthropic"
     },
     "llm_node_tps": 14.943376185785935,
@@ -1670,7 +1670,7 @@
     "rows": [
      {
       "provider": "api.anthropic.com",
-      "model": "claude-haiku-4-5-20251001",
+      "model": "claude-haiku-5-5",
       "unit": "input_tokens",
       "quantity": 27263.0,
       "unit_price_usd": 1.0,
@@ -1678,7 +1678,7 @@
      },
      {
       "provider": "api.anthropic.com",
-      "model": "claude-haiku-4-5-20251001",
+      "model": "claude-haiku-5-5",
       "unit": "output_tokens",
       "quantity": 692.0,
       "unit_price_usd": 5.0,
@@ -1691,7 +1691,7 @@
    "usage": [
     {
      "type": "llm_usage",
-     "model": "claude-haiku-4-5-20251001",
+     "model": "claude-haiku-5-5",
      "provider": "api.anthropic.com",
      "input_tokens": 27263,
      "output_tokens": 692,
