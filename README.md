@@ -15,8 +15,8 @@ that change it. The package has three entry points, and each one is for a differ
 | `@pinecall/room/react` | the page, in React | `useRoom()`, `useStore()` and `useKaraoke()` |
 | `@pinecall/room/server` | your server | `mint()`, `dial()`, `expect()` and `GatewayRefused`: the only code that touches the key |
 
-A conversation has two parts, and they are not the same thing. **The seat** is a LiveKit room: it
-carries the audio and the typed lines. **The log** is the call's record on the gateway, read
+A conversation has two parts, and they are not the same thing. **The participant** is the page's
+place in a LiveKit room: it carries the audio and the typed lines. **The log** is the call's record on the gateway, read
 straight from it with a token minted for that one call: every turn, every tool the agent called and what came back, the agent's own state, and
 at the end the cost and the score. The store joins the two. What the page draws is the log folded
 by the runtime's own reducer, the same fold the Pinecall console draws from.
@@ -27,7 +27,7 @@ by the runtime's own reducer, the same fold the Pinecall console draws from.
 pnpm add @pinecall/room livekit-client
 ```
 
-`livekit-client` is only loaded when a seat is taken, so a page that only offers "call me" never
+`livekit-client` is only loaded when the page joins a room, so a page that only offers "call me" never
 downloads it. React is optional: `@pinecall/room/react` needs React 18 or 19, the rest needs
 nothing. The server entry needs Node 24 or anything else with `fetch`.
 
@@ -108,8 +108,8 @@ back the state with the six verbs beside it.
 
 ## Your server: two routes
 
-The page never holds a key. It asks your server for a seat and, if you offer it, for a call to its
-phone; your server asks the gateway with the org's key. The key needs the `talk` scope and never
+The page never holds a key. It asks your server for a participant's token and, if you offer it, for
+a call to its phone; your server asks the gateway with the org's key. The key needs the `talk` scope and never
 reaches the page.
 
 | route | the page sends | your server does | it answers |
@@ -146,20 +146,20 @@ app.post("/api/call-me", async (c) => {
 });
 ```
 
-**The log is read from the gateway, not relayed.** Beside the seat, the gateway mints a
+**The log is read from the gateway, not relayed.** Beside the participant's token, the gateway mints a
 `log_token`: it reads that one call's log, its state and its recording, for four hours, before
 the call ends and after, and opens nothing else — no room, no other call, no verb. The page
-follows `GET /v1/calls/{call}/events` with it, and those doors answer a page on any origin. Your
+follows `GET /v1/calls/{call}/events` with it, and those routes answer a page on any origin. Your
 server keeps no list of the calls it opened, so restarting it touches no call a page is showing.
 
 `log` is what the token reads the call through: `public` (the default) is the turns and the
 state the agent declared public; `tenant` is everything — the tools, the latency, the cost — with a
 `pii` field masked. Ask for `tenant` when the page draws those, as a demo does. `gateway` in
-`room()` names your own box; `https://cloud.pinecall.io` otherwise.
+`room()` names your own gateway; `https://cloud.pinecall.io` otherwise.
 
 ## Have the agent call me
 
-Give `room()` a `callMe`, and the page can ask for a phone call instead of a seat:
+Give `room()` a `callMe`, and the page can ask for a phone call instead of joining the room:
 
 ```ts
 const call = room({
@@ -179,17 +179,13 @@ const call = room({
 await call.callMe("+34600000001");
 ```
 
-There is no seat on a phone call: the conversation happens on the phone, and the page only
+The page is no participant on a phone call: the conversation happens on the phone, and the page only
 watches. Everything it says comes from the log. The phase is `ringing` while the call is being
 placed, `live` once the log says it was answered, and `ended` when the log says it is over — or
 straight from `ringing` when nobody picked up. `speaking` comes from the log too.
 
-The gateway refuses a dial to a number that has never called or written to the org, and counts
-dials per minute and per day. In production it also refuses a number on the org's do-not-call
-list, a +1 number with no consent on file (recorded at `POST /v1/org/consents`), a number outside
-the hours it may be rung where it is (8 a.m. to 9 p.m. for +1, or the org's calling hours), and a
-number already rung too often that day (three for +1, unless the org sets its own limit). Those
-refusals reach the page as a failed call with the gateway's sentence.
+Every dial passes the org's dialling rules first ([Calling out](calling-out.md) lists them and the
+order they run in), and a refusal reaches the page as a failed call with the gateway's sentence.
 
 ## Let the visitor call you
 
@@ -221,8 +217,8 @@ the log, `speaking`, `ended`. A code lives ten minutes unless `ttl_s` says other
 seconds); an expired one fails with "the code expired: ask for another". `leave()` while
 `expecting` stops the asking at once.
 
-The agent must answer at a phone number in the key's world, or `expect()` throws the gateway's
-409 naming the fix.
+The agent must answer at a phone number in the sandbox or production the key opens, or `expect()`
+throws the gateway's 409 naming the fix.
 
 ## Relaying the log yourself
 
@@ -256,7 +252,7 @@ The phase and everything around it — `error`, `connection`, `wantsSound`, `spe
 published the moment they change. The log is painted at most ten times a second: a burst of
 entries inside one turn is one repaint, not forty.
 
-The log is read for a while after the seat closes. The agent's last words, the call's cost and its
+The log is read for a while after the page leaves the room. The agent's last words, the call's cost and its
 score are entries that arrive after the visitor has gone, so `cost` is `null` until `call.summary`,
 which comes after `call.ended`. The stream is followed until `call.score`, the last thing a log ever
 says, or for `linger` milliseconds after the call ended (60 000 by default: the worker notices a caller has gone some twenty seconds after the fact, and the score comes after that), whichever is first.
@@ -350,12 +346,12 @@ Nothing fails silently. Every refusal is a phase and a sentence, or a rejected p
 | `byPhone()` on a room given no `expect` | `failed`, `error` says so |
 | the code expired before a call claimed it | `failed`, "the code expired: ask for another" |
 | the gateway answered a `4xx` about the code | `failed`, "the code answered 403" |
-| the log answered a `4xx` | on the phone: `failed`, "the log answered 401". In a room: `connection` is `ended` and the phase is left to the seat, which is the call |
+| the log answered a `4xx` | on the phone: `failed`, "the log answered 401". In a room: `connection` is `ended` and the phase is left to the room, which is the call |
 | the log answered a `5xx`, or its stream dropped | `connection` is `reconnecting`, and it resumes where it was; nothing ends |
 | `tokens` or `callMe` answered no `log_token`, and there is no `log` to relay it | `failed`, `error` says so |
 | the room closed from the other side | `ended`; the log is read on until the score |
 | an entry of the log this version cannot read | skipped; `onSkipped(why)` is called, and the rest of the call still draws |
-| `send()` outside a live seat | the promise rejects with "not in a call"; an empty line is nothing |
+| `send()` outside a live room | the promise rejects with "not in a call"; an empty line is nothing |
 
 On the server, `mint`, `dial` and `expect` throw `GatewayRefused` for a refusal: `status` is the gateway's,
 and `detail` its sentence when it sent one (`null` when the body was not the gateway's JSON). The
