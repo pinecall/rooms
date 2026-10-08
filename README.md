@@ -12,7 +12,7 @@ that change it. The package has three entry points, and each one is for a differ
 | import | where it runs | what it gives you |
 |---|---|---|
 | `@pinecall/room` | the page | `room()`, the store of one conversation, `rowsOf`, `knownBy`, `brief` to draw it, and the karaoke of what is being said |
-| `@pinecall/room/react` | the page, in React | `useRoom()` and `useStore()` |
+| `@pinecall/room/react` | the page, in React | `useRoom()`, `useStore()` and `useKaraoke()` |
 | `@pinecall/room/server` | your server | `mint()`, `dial()`, `expect()` and `GatewayRefused`: the only code that touches the key |
 
 A conversation has two parts, and they are not the same thing. **The seat** is a LiveKit room: it
@@ -185,8 +185,11 @@ placed, `live` once the log says it was answered, and `ended` when the log says 
 straight from `ringing` when nobody picked up. `speaking` comes from the log too.
 
 The gateway refuses a dial to a number that has never called or written to the org, and counts
-dials per minute and per day. Those refusals reach the page as a failed call with the gateway's
-sentence.
+dials per minute and per day. In production it also refuses a number on the org's do-not-call
+list, a +1 number with no consent on file (recorded at `POST /v1/org/consents`), a number outside
+the hours it may be rung where it is (8 a.m. to 9 p.m. for +1, or the org's calling hours), and a
+number already rung too often that day (three for +1, unless the org sets its own limit). Those
+refusals reach the page as a failed call with the gateway's sentence.
 
 ## Let the visitor call you
 
